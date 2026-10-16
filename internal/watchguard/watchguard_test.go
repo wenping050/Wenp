@@ -6,12 +6,12 @@ import "testing"
 // the pool's suffixed names) are excluded from network-change detection, while
 // real physical-NIC changes still register. Pure functions, no real interfaces.
 func TestWatchguardIgnoresWintun(t *testing.T) {
-	ignore := []string{"Xiaohe"}
+	ignore := []string{"WenP"}
 
 	withWintun := []string{
 		"Ethernet|192.168.1.10/24",
-		"Xiaohe|172.16.0.2/32",
-		"Xiaohe 2|172.16.0.3/32",
+		"WenP|172.16.0.2/32",
+		"WenP 2|172.16.0.3/32",
 	}
 	withoutWintun := []string{
 		"Ethernet|192.168.1.10/24",
@@ -30,13 +30,13 @@ func TestWatchguardIgnoresWintun(t *testing.T) {
 	}
 
 	// Name matching: exact base, suffixed base, and no over-matching.
-	if !matchesIgnore(ignore, "Xiaohe") {
+	if !matchesIgnore(ignore, "WenP") {
 		t.Fatal("exact wintun name should match")
 	}
-	if !matchesIgnore(ignore, "Xiaohe 3") {
+	if !matchesIgnore(ignore, "WenP 3") {
 		t.Fatal("suffixed wintun name should match")
 	}
-	if matchesIgnore(ignore, "XiaoheX") {
+	if matchesIgnore(ignore, "WenPX") {
 		t.Fatal("unrelated name should not match")
 	}
 }

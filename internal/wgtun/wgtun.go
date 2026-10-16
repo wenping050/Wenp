@@ -59,7 +59,7 @@ import (
 // DefaultInterfaceName is the wintun adapter name used when Config.InterfaceName
 // is empty. watchguard uses it as an ignore-prefix so the virtual interface's
 // create/destroy never masquerades as a network-environment change.
-const DefaultInterfaceName = "Xiaohe"
+const DefaultInterfaceName = "WenP"
 
 type Config struct {
 	InterfaceName string   // "Xiaohe" or similar
@@ -134,10 +134,10 @@ func New(cfg Config) (*tunnel, error) {
 	// which layer read/wrote a packet.
 	logger := &device.Logger{
 		Verbosef: func(format string, args ...any) {
-			logx.Debugf("[xiaohe-wg:"+name+"] "+format, args...)
+			logx.Debugf("[wenp-wg:"+name+"] "+format, args...)
 		},
 		Errorf: func(format string, args ...any) {
-			logx.Errorf("[xiaohe-wg:"+name+"] "+format, args...)
+			logx.Errorf("[wenp-wg:"+name+"] "+format, args...)
 		},
 	}
 	dev := device.NewDevice(tdev, conn.NewDefaultBind(), logger)

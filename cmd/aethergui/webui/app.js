@@ -1010,11 +1010,18 @@ function renderAbout() {
   $('#abBackend').textContent = v.backend || '—';
   const lic = $('#abExpiry');
   if (lic) {
-    if (!licState) lic.textContent = '检查中…';
-    else if (licState.expired) lic.textContent = '已到期';
-    else if (licState.offline) lic.textContent = '未检查（离线）';
-    else if (licState.days_left >= 0) lic.textContent = licState.expiry_at + '（剩 ' + licState.days_left + ' 天）';
-    else lic.textContent = '无限制';
+    const a = S.auth;
+    if (!a || !a.logged_in) {
+      lic.innerHTML = '<span style="color:var(--text-muted,#888)">未登录（<a href="javascript:void(0)" id="abGoLogin" style="color:var(--accent,#3b82f6);text-decoration:underline;">立即登录</a>）</span>';
+      const goLogin = $('#abGoLogin');
+      if (goLogin) goLogin.onclick = showAuthModal;
+    } else if (a.days_left <= 0) {
+      lic.innerHTML = `<span style="color:var(--error,#ef4444);font-weight:600">${esc(a.username)} (已到期，<a href="javascript:void(0)" id="abGoRenew" style="color:var(--accent,#3b82f6);text-decoration:underline;">充值续期</a>)</span>`;
+      const goRenew = $('#abGoRenew');
+      if (goRenew) goRenew.onclick = showAuthModal;
+    } else {
+      lic.innerHTML = `<span style="color:var(--success,#10b981);font-weight:600">${esc(a.username)}</span> · 到期: ${esc(a.expire_at || '—')} (剩 <b style="color:var(--accent,#3b82f6)">${a.days_left}</b> 天)`;
+    }
   }
 }
 
@@ -1065,10 +1072,13 @@ function showAuthModal() {
     $('#authClose').onclick = closeModal;
     $('#btnLogout').onclick = async () => {
       await api('/api/auth/logout');
+      const snap = await api('/api/snapshot');
+      if (snap) applySnapshot(snap);
       closeModal();
       toast('已退出登录', 'info');
+      setTimeout(showAuthModal, 200);
     };
-    $('#btnRedeem').onclick = async () => {
+    const doRedeem = async () => {
       const card = $('#cardKeyInput').value.trim();
       if (!card) return toast('请输入充值卡密', 'err');
       $('#btnRedeem').disabled = true;
@@ -1076,6 +1086,8 @@ function showAuthModal() {
       const r = await api('/api/auth/redeem', { card_key: card });
       if (r && r.ok) {
         toast('卡密充值成功！', 'ok');
+        const snap = await api('/api/snapshot');
+        if (snap) applySnapshot(snap);
         closeModal();
       } else {
         toast((r && r.error) || '充值失败', 'err');
@@ -1083,10 +1095,16 @@ function showAuthModal() {
         $('#btnRedeem').textContent = '充值';
       }
     };
+    $('#btnRedeem').onclick = doRedeem;
+    $('#cardKeyInput').onkeydown = (e) => { if (e.key === 'Enter') doRedeem(); };
   } else {
     showModal(`
       <h3>🔑 登录授权账号</h3>
-      <p style="font-size:13px; color:var(--text-muted,#64748b); margin-bottom:14px;">请输入授权账号与密码后使用客户端</p>
+      <p style="font-size:13px; color:var(--text-muted,#64748b); margin-bottom:12px;">欢迎使用 WenP 客户端，请登录您的授权账号开启网络加速</p>
+      <div style="font-size:12px; color:var(--text-muted,#64748b); background:var(--bg,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:6px; padding:8px 12px; margin-bottom:14px; line-height:1.6;">
+        <b>测试账号：</b><code>admin_test</code> / 密码：<code>123456</code><br>
+        <span style="font-size:11px; color:#888;">提示：初次使用如无专属账号，请联系管理员开通或获取授权。</span>
+      </div>
       <div style="margin-bottom:12px;">
         <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">账号</label>
         <input type="text" id="loginUser" class="inp" placeholder="输入用户名" style="width:100%; padding:8px 10px; border:1px solid var(--border,#e2e8f0); border-radius:6px;">
@@ -1096,12 +1114,12 @@ function showAuthModal() {
         <input type="password" id="loginPass" class="inp" placeholder="输入密码" style="width:100%; padding:8px 10px; border:1px solid var(--border,#e2e8f0); border-radius:6px;">
       </div>
       <div class="modal-act" style="display:flex; justify-content:flex-end; gap:10px;">
-        <button class="btn" id="authClose" type="button">关闭</button>
+        <button class="btn" id="authClose" type="button">稍后再说</button>
         <button class="btn primary" id="btnLogin" type="button">立即登录</button>
       </div>
     `);
     $('#authClose').onclick = closeModal;
-    $('#btnLogin').onclick = async () => {
+    const doLogin = async () => {
       const u = $('#loginUser').value.trim();
       const p = $('#loginPass').value.trim();
       if (!u || !p) return toast('账号或密码不能为空', 'err');
@@ -1110,6 +1128,8 @@ function showAuthModal() {
       const r = await api('/api/auth/login', { username: u, password: p });
       if (r && r.ok) {
         toast('登录成功！', 'ok');
+        const snap = await api('/api/snapshot');
+        if (snap) applySnapshot(snap);
         closeModal();
       } else {
         toast((r && r.error) || '登录失败', 'err');
@@ -1117,6 +1137,9 @@ function showAuthModal() {
         $('#btnLogin').textContent = '立即登录';
       }
     };
+    $('#btnLogin').onclick = doLogin;
+    $('#loginPass').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+    $('#loginUser').onkeydown = (e) => { if (e.key === 'Enter') $('#loginPass').focus(); };
   }
 }
 
@@ -1126,7 +1149,7 @@ function showExpired(lic) {
   showModal(`
     <h3>软件已到期</h3>
     <p class="m-warn">${esc(lic.message || '软件已到期，请联系作者续期')}</p>
-    <p class="m-contact">${esc(lic.contact || 'Telegram: @xiaoheok\nEmail: wenping050@gmail.com').replace(/\n/g, '<br>')}</p>
+    <p class="m-contact">${esc(lic.contact || 'Telegram: @wenping050\nEmail: wenping050@gmail.com').replace(/\n/g, '<br>')}</p>
     <div class="modal-act"><button class="btn primary" id="expOk" type="button">确定</button></div>
   `, 'expired');
   $('#expOk').onclick = async () => {
@@ -1284,6 +1307,8 @@ function bind() {
     try { await navigator.clipboard.writeText(text); toast(tx('copied'), 'ok'); } catch (_) { toast('clipboard blocked', 'err'); }
   };
 
+  const abAuth = $('#abManageAuth');
+  if (abAuth) abAuth.onclick = showAuthModal;
   $('#abCheckUpdate').onclick = () => checkUpdates(true);
   $$('[data-url]').forEach((b) => { b.onclick = () => api('/api/system/open', { url: b.dataset.url }); });
 
@@ -1331,6 +1356,17 @@ window.addEventListener('unhandledrejection', (e) => {
   applySnapshot(snap);
   go('home');
   connectSSE();
+
+  // 启动客户端自动检查登录状态：未登录或已到期时主动弹出登录/授权界面
+  if (!snap.auth || !snap.auth.logged_in) {
+    setTimeout(showAuthModal, 300);
+  } else if (snap.auth.days_left <= 0) {
+    setTimeout(() => {
+      showAuthModal();
+      toast('授权已到期，请充值续期', 'err');
+    }, 300);
+  }
+
   checkUpdates(false); // start-up probe: license window first, then updates
 })();
 

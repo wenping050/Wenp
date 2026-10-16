@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	appTitle = "Xiaohe"
+	appTitle = "WenP"
 	prefW    = 1280 // preferred size; shrunk to fit the current desktop
 	prefH    = 860
 	minW     = 960

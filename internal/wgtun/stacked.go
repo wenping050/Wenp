@@ -76,7 +76,7 @@ func NewStackedTunnel(ctx context.Context, outerCfg, innerCfg Config, onPhase fu
 		innerCfg.MTU = outerCfg.MTU - 80
 	}
 	if innerCfg.InterfaceName == "" {
-		innerCfg.InterfaceName = "Xiaohe-inner"
+		innerCfg.InterfaceName = "WenP-inner"
 	}
 
 	// Physical-link metric guard, same as Manager.Start: snapshot the default-
@@ -417,7 +417,7 @@ func BuildStacked(configDir, accountPath string) (outerCfg, innerCfg Config, err
 	}
 	innerCfg = acc.toConfig("")
 	innerCfg.Endpoint = innerEndpoint(outerCfg.Endpoint)
-	innerCfg.InterfaceName = "Xiaohe-inner"
+	innerCfg.InterfaceName = "WenP-inner"
 	// MTU: outer rides the wire at 1440 (physical 1500 - 60 outer WG/UDP/IP
 	// overhead; DF-verified), inner rides inside the outer at 1440 - 80.
 	if outerCfg.MTU <= 1280 {

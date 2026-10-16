@@ -126,7 +126,7 @@ assigned_endpoint = "162.159.192.7"
 	if innerCfg.PrivateKey != inner.PrivateKey {
 		t.Fatalf("inner priv mismatch")
 	}
-	if innerCfg.InterfaceName != "Xiaohe-inner" {
+	if innerCfg.InterfaceName != "WenP-inner" {
 		t.Fatalf("inner ifname = %q", innerCfg.InterfaceName)
 	}
 	if innerCfg.MTU != 1360 { // outer 1440 - 80

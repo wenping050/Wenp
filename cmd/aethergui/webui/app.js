@@ -407,6 +407,24 @@ function renderTop() {
     ? tx('connected') + ' · ' + v.protocolName + (v.exitCountry ? ' · ' + v.exitCountry : '')
     : (v.error ? v.error : coreLabel() + ' · ' + tx(page === 'home' ? 'home' : page));
   $('#pageSub').textContent = sub;
+
+  // Render Auth Badge
+  const auth = S.auth;
+  const authBtn = $('#topAuthBtn');
+  const authDot = $('#topAuthDot');
+  const authText = $('#topAuthText');
+  if (authBtn && auth) {
+    if (auth.logged_in && auth.days_left > 0) {
+      if (authDot) authDot.className = 'dot ok';
+      if (authText) authText.textContent = `${auth.username} (${auth.days_left}天)`;
+    } else if (auth.logged_in && auth.days_left <= 0) {
+      if (authDot) authDot.className = 'dot bad';
+      if (authText) authText.textContent = `${auth.username} (已到期)`;
+    } else {
+      if (authDot) authDot.className = 'dot warn';
+      if (authText) authText.textContent = '未登录';
+    }
+  }
 }
 
 function coreLabel() {
@@ -1021,13 +1039,94 @@ function showModal(html, cls) {
   $('#modalMask').hidden = false;
 }
 
+function showAuthModal() {
+  const auth = (S && S.auth) || {};
+  if (auth.logged_in) {
+    showModal(`
+      <h3>👤 用户授权中心</h3>
+      <div style="margin-bottom:16px; font-size:13px; line-height:2.0; background:var(--bg,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:8px; padding:14px;">
+        <div><b>当前账号：</b><span>${esc(auth.username)}</span></div>
+        <div><b>授权到期：</b><span>${esc(auth.expire_at || '—')}</span></div>
+        <div><b>剩余天数：</b><span class="badge ${auth.days_left > 5 ? 'ok' : 'bad'}">${auth.days_left} 天</span></div>
+        <div style="font-size:11px; color:#888; word-break:break-all; margin-top:6px;"><b>本机机器码：</b><code>${esc(auth.machine_id)}</code></div>
+      </div>
+      <div style="border-top:1px solid var(--border,#e2e8f0); padding-top:12px; margin-bottom:16px;">
+        <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">🎫 卡密充值 / 激活续费</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="cardKeyInput" class="inp" placeholder="输入充值卡密 WENP-..." style="flex:1; padding:7px 10px; border:1px solid var(--border,#e2e8f0); border-radius:6px;">
+          <button class="btn primary" id="btnRedeem" type="button">充值</button>
+        </div>
+      </div>
+      <div class="modal-act" style="display:flex; justify-content:space-between;">
+        <button class="btn danger" id="btnLogout" type="button">退出登录</button>
+        <button class="btn" id="authClose" type="button">关闭</button>
+      </div>
+    `);
+    $('#authClose').onclick = closeModal;
+    $('#btnLogout').onclick = async () => {
+      await api('/api/auth/logout');
+      closeModal();
+      toast('已退出登录', 'info');
+    };
+    $('#btnRedeem').onclick = async () => {
+      const card = $('#cardKeyInput').value.trim();
+      if (!card) return toast('请输入充值卡密', 'err');
+      $('#btnRedeem').disabled = true;
+      $('#btnRedeem').textContent = '充值中…';
+      const r = await api('/api/auth/redeem', { card_key: card });
+      if (r && r.ok) {
+        toast('卡密充值成功！', 'ok');
+        closeModal();
+      } else {
+        toast((r && r.error) || '充值失败', 'err');
+        $('#btnRedeem').disabled = false;
+        $('#btnRedeem').textContent = '充值';
+      }
+    };
+  } else {
+    showModal(`
+      <h3>🔑 登录授权账号</h3>
+      <p style="font-size:13px; color:var(--text-muted,#64748b); margin-bottom:14px;">请输入授权账号与密码后使用客户端</p>
+      <div style="margin-bottom:12px;">
+        <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">账号</label>
+        <input type="text" id="loginUser" class="inp" placeholder="输入用户名" style="width:100%; padding:8px 10px; border:1px solid var(--border,#e2e8f0); border-radius:6px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">密码</label>
+        <input type="password" id="loginPass" class="inp" placeholder="输入密码" style="width:100%; padding:8px 10px; border:1px solid var(--border,#e2e8f0); border-radius:6px;">
+      </div>
+      <div class="modal-act" style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn" id="authClose" type="button">关闭</button>
+        <button class="btn primary" id="btnLogin" type="button">立即登录</button>
+      </div>
+    `);
+    $('#authClose').onclick = closeModal;
+    $('#btnLogin').onclick = async () => {
+      const u = $('#loginUser').value.trim();
+      const p = $('#loginPass').value.trim();
+      if (!u || !p) return toast('账号或密码不能为空', 'err');
+      $('#btnLogin').disabled = true;
+      $('#btnLogin').textContent = '登录中…';
+      const r = await api('/api/auth/login', { username: u, password: p });
+      if (r && r.ok) {
+        toast('登录成功！', 'ok');
+        closeModal();
+      } else {
+        toast((r && r.error) || '登录失败', 'err');
+        $('#btnLogin').disabled = false;
+        $('#btnLogin').textContent = '立即登录';
+      }
+    };
+  }
+}
+
 // An expired build offers exactly one button: acknowledging it stops the
 // tunnel and exits, as agreed.
 function showExpired(lic) {
   showModal(`
     <h3>软件已到期</h3>
     <p class="m-warn">${esc(lic.message || '软件已到期，请联系作者续期')}</p>
-    <p class="m-contact">${esc(lic.contact || 'Telegram: @xiaoheok\nEmail: hezhanleiok@gmail.com').replace(/\n/g, '<br>')}</p>
+    <p class="m-contact">${esc(lic.contact || 'Telegram: @xiaoheok\nEmail: wenping050@gmail.com').replace(/\n/g, '<br>')}</p>
     <div class="modal-act"><button class="btn primary" id="expOk" type="button">确定</button></div>
   `, 'expired');
   $('#expOk').onclick = async () => {
@@ -1082,8 +1181,8 @@ async function checkUpdates(manual) {
   licState = r.license || null;
   updState = r.update || null;
   if (page === 'about') renderAbout();
-  // The license window always wins over an update offer.
-  if (licState && licState.expired) { showExpired(licState); return; }
+  // Old static license window bypassed in favor of VPS account system
+  // if (licState && licState.expired) { showExpired(licState); return; }
   if (manual) {
     if (updState && (updState.gui_has || updState.core_has)) showUpdateDialog(updState);
     else toast('已是最新版本', 'ok');
@@ -1107,11 +1206,19 @@ function toast(msg, kind) {
 
 // ── wiring ──────────────────────────────────────────────────────
 function bind() {
+  const topAuth = $('#topAuthBtn');
+  if (topAuth) topAuth.onclick = showAuthModal;
+
   $('#powerBtn').onclick = async () => {
     const st = S.vpn.status;
     if (st === 'Connecting' || st === 'Reconnecting') await api('/api/cancel');
     else if (st === 'Connected') await api('/api/disconnect');
     else {
+      if (!S.auth || !S.auth.logged_in || S.auth.days_left <= 0) {
+        toast('请先登录授权账号', 'err');
+        showAuthModal();
+        return;
+      }
       if (!S.version.core || S.version.coreHealth === 'Missing') toast(tx('needCore'), 'err');
       await api('/api/connect');
     }

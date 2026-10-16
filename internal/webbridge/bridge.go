@@ -177,6 +177,11 @@ func (b *Bridge) Handler() http.Handler {
 	// /api/update/gui installs a whole bundle (GUI + core). The core has no
 	// endpoint of its own by design: it can only ever move with the GUI.
 	mux.HandleFunc("/api/update/gui", b.guard(b.updateGUI))
+	mux.HandleFunc("/api/auth/status", b.guard(b.authStatus))
+	mux.HandleFunc("/api/auth/login", b.guard(b.authLogin))
+	mux.HandleFunc("/api/auth/verify", b.guard(b.authVerify))
+	mux.HandleFunc("/api/auth/redeem", b.guard(b.authRedeem))
+	mux.HandleFunc("/api/auth/logout", b.guard(b.authLogout))
 	mux.HandleFunc("/", b.static)
 	return mux
 }
@@ -738,3 +743,53 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
 }
+
+func (b *Bridge) authStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, b.app.Auth.Status())
+}
+
+func (b *Bridge) authLogin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	info, err := b.app.Auth.Login(req.Username, req.Password)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "auth": info})
+}
+
+func (b *Bridge) authVerify(w http.ResponseWriter, _ *http.Request) {
+	info, err := b.app.Auth.Verify()
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "auth": info})
+}
+
+func (b *Bridge) authRedeem(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CardKey string `json:"card_key"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	info, err := b.app.Auth.Redeem(req.CardKey)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "auth": info})
+}
+
+func (b *Bridge) authLogout(w http.ResponseWriter, _ *http.Request) {
+	b.app.Auth.Logout()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+

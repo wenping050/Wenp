@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aethergui/aethergui/internal/app"
+	"github.com/aethergui/aethergui/internal/auth"
 	"github.com/aethergui/aethergui/internal/config"
 	"github.com/aethergui/aethergui/internal/killswitch"
 	"github.com/aethergui/aethergui/internal/logx"
@@ -195,6 +196,7 @@ type Snapshot struct {
 	Testing    bool            `json:"nodesTesting"`
 	Probing    bool            `json:"nodesProbing"`
 	System     SystemInfo      `json:"system"`
+	Auth       auth.AuthInfo   `json:"auth"`
 	Now        int64           `json:"now"`
 }
 
@@ -273,7 +275,8 @@ func (b *Bridge) snapshot() Snapshot {
 			AutoStart:     s.AutoStart,
 			NativeResidue: a.NativeResidue(),
 		},
-		Now: time.Now().UnixMilli(),
+		Auth: a.Auth.Status(),
+		Now:  time.Now().UnixMilli(),
 	}
 }
 

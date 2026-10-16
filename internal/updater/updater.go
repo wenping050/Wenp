@@ -30,14 +30,14 @@ import (
 
 const (
 	// ManifestURL is version.json at the root of the publishing repo.
-	ManifestURL = "https://raw.githubusercontent.com/hezhanleiok/aether/main/version.json"
+	ManifestURL = "https://raw.githubusercontent.com/wenping050/Wenp/refs/heads/main/version.json"
 	// CoreReleaseAPI is the official Aether core release feed; the pinned tag
 	// is appended when resolving which core to install.
 	CoreReleaseAPI = "https://api.github.com/repos/CluvexStudio/Aether/releases"
 
 	// DefaultMessage / DefaultContact are used when the manifest omits them.
 	DefaultMessage = "软件已到期，请联系作者续期"
-	DefaultContact = "Telegram: @xiaoheok\nEmail: hezhanleiok@gmail.com"
+	DefaultContact = "Telegram: @wenping050\nEmail: wenping050@gmail.com"
 )
 
 // Manifest mirrors version.json in the publishing repository.

@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/net/proxy"
 
+	"github.com/aethergui/aethergui/internal/auth"
 	"github.com/aethergui/aethergui/internal/config"
 	"github.com/aethergui/aethergui/internal/coremgr"
 	"github.com/aethergui/aethergui/internal/killswitch"
@@ -34,6 +35,7 @@ type App struct {
 	Pool     *node.Pool
 	Guard    *watchguard.Watch
 	Traffic  *TrafficSampler
+	Auth     *auth.Manager
 
 	// nativeWG holds the native WireGuard session (wireguard-go + wintun). It
 	// is a no-op type unless built with the "wgtun" tag - see nativewg.go and
@@ -152,6 +154,7 @@ func New() (*App, error) {
 		Core:     core,
 		VPN:      vpn.New(core),
 		Pool:     pool,
+		Auth:     auth.New(config.Dir()),
 	}
 	a.VPN.Subscribe(func(st vpn.State) {
 		a.subMu.Lock()
@@ -455,6 +458,11 @@ func (a *App) Connect() error {
 		return ErrAlreadyConnecting
 	}
 	defer a.connecting.Store(false)
+
+	// Authorization verification
+	if ok, reason := a.Auth.IsAuthorized(); !ok {
+		return fmt.Errorf("未授权: %s", reason)
+	}
 	s := a.Settings
 	// A fresh, user-initiated connect starts the gool exit search over. The
 	// guard's own retries must not reset the counter, or it would loop forever.
